@@ -1,0 +1,7 @@
+✅ Validation:
+Precision@5: 0.6880
+AUC: 0.5012
+
+✅ Test:
+Precision@5: 0.6400
+AUC: 0.5298
