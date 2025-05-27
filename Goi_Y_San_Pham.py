@@ -2,72 +2,72 @@ import pandas as pd
 import numpy as np
 import pickle
 from lightfm import LightFM
-from lightfm.data import Dataset
 from scipy.sparse import load_npz
 
-# === Load mô hình và dữ liệu đã lưu ===
-with open("MODEL/lightfm_model.pkl", "rb") as f:
-    model = pickle.load(f)
-
-with open("MODEL/lightfm_dataset.pkl", "rb") as f:
-    dataset = pickle.load(f)
-
+# ==== Load mô hình và dữ liệu ====
+model = pickle.load(open("MODEL/lightfm_model.pkl", "rb"))
+dataset = pickle.load(open("MODEL/lightfm_dataset.pkl", "rb"))
 user_features = load_npz("MODEL/user_features_matrix.npz")
 item_features = load_npz("MODEL/item_features_matrix.npz")
 
-# === Load dữ liệu test gốc ===
 test_df = pd.read_csv("Chia_Data/data_test.csv")
 
+# ==== Tiền xử lý ====
 def age_group(age):
-    if age <= 25:
-        return "18-25"
-    elif age <= 35:
-        return "26-35"
-    elif age <= 45:
-        return "36-45"
-    elif age <= 60:
-        return "46-60"
-    else:
-        return "60+"
+    if age <= 25: return "18-25"
+    elif age <= 35: return "26-35"
+    elif age <= 45: return "36-45"
+    elif age <= 60: return "46-60"
+    else: return "60+"
 
 test_df["Age_Group"] = test_df["Age"].apply(age_group)
 test_df.rename(columns={"Customer_ID": "user_id_raw", "Item_Purchased": "item_id_raw"}, inplace=True)
 
-# Mapping
-user_id_map, user_feature_map, item_id_map, item_feature_map = dataset.mapping()
-inv_user_map = {v: k for k, v in user_id_map.items()}
-inv_item_map = {v: k for k, v in item_id_map.items()}
+# ==== Mapping từ dataset ====
+user_id_map, _, item_id_map, _ = dataset.mapping()
+inner_to_item_raw = {v: k for k, v in item_id_map.items()}
 
-unique_user_ids = test_df["user_id_raw"].unique()
-n_items = len(item_id_map)
-
-# Dự đoán
+# ==== Tính precision và lưu kết quả ====
 results = []
-for user_raw in unique_user_ids:
-    if user_raw not in user_id_map:
+
+for user_raw_id in test_df["user_id_raw"].unique():
+    if user_raw_id not in user_id_map:
         continue
-    uid = user_id_map[user_raw]
-    scores = model.predict(uid, np.arange(n_items), user_features=user_features, item_features=item_features)
-    top_items = np.argsort(-scores)[:5]
-    recommended = [inv_item_map[i] for i in top_items]
 
-    true_items = test_df[test_df["user_id_raw"] == user_raw]["item_id_raw"].tolist()
+    uid = user_id_map[user_raw_id]
 
-    hits = len(set(recommended) & set(true_items))
-    precision = hits / len(recommended)
-    recall = hits / len(true_items) if len(true_items) > 0 else 0
-    hit = 1 if hits > 0 else 0
+    # Các sản phẩm đã mua
+    true_items_raw = test_df[test_df["user_id_raw"] == user_raw_id]["item_id_raw"].unique()
+    true_items_inner = [item_id_map[i] for i in true_items_raw if i in item_id_map]
+    if not true_items_inner:
+        continue
+
+    # Dự đoán tất cả item
+    scores = model.predict(uid, np.arange(len(item_id_map)), user_features=user_features, item_features=item_features)
+
+    # Top-N sản phẩm gợi ý theo số sản phẩm thực tế
+    top_items_inner = np.argsort(-scores)[:len(true_items_inner)]
+    top_items_raw = [inner_to_item_raw[i] for i in top_items_inner]
+
+    # So sánh
+    correct_items = set(top_items_raw) & set(true_items_raw)
+    num_correct = len(correct_items)
+    precision = num_correct / len(true_items_inner)
 
     results.append({
-        "Customer_ID": user_raw,
-        "True_Items": ",".join(true_items),
-        "Recommended_Items": ",".join(recommended),
-        "Hit@5": hit,
-        "Precision@5": round(precision, 4),
-        "Recall@5": round(recall, 4)
+        "Customer_ID": user_raw_id,
+        "Số SP Mua Thực Tế": len(true_items_raw),
+        "Số SP Được Gợi Ý": len(top_items_raw),
+        "Số SP Đúng": num_correct,
+        "Precision": precision,
+        "SP Đã Mua": ", ".join(true_items_raw),
+        "SP Được Gợi Ý": ", ".join(top_items_raw),
+        "SP Đúng": ", ".join(correct_items)
     })
 
-# Xuất kết quả
-result_df = pd.DataFrame(results)
-result_df.to_csv("prediction_vs_actual.csv", index=False)
-print("✅ Đã lưu kết quả vào prediction_vs_actual.csv")
+# ==== Xuất ra CSV đẹp ====
+results_df = pd.DataFrame(results)
+results_df.to_csv("ket_qua_goi_y.csv", index=False, encoding="utf-8-sig")
+
+print("✅ Đã lưu file 'ket_qua_goi_y.csv' với chi tiết sản phẩm đúng.")
+print("🎯 Precision trung bình toàn bộ người dùng:", results_df["Precision"].mean())
