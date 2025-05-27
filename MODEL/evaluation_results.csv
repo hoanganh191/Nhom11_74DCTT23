@@ -1,3 +1,0 @@
-dataset,precision@5,auc
-Validation,0.68799996,0.5011982
-Test,0.64,0.52984923

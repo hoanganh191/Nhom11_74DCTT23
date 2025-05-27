@@ -2,10 +2,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from lightfm.evaluation import precision_at_k
-
-# ===== Hàm hỗ trợ =====
-def load_npz_object(path):
-    return np.load(path, allow_pickle=True)["data"].item()
+from scipy.sparse import load_npz  # ✅ Thêm dòng này
 
 def age_group(age):
     if age <= 25:
@@ -27,8 +24,8 @@ with open("MODEL/lightfm_dataset.pkl", "rb") as f:
     dataset = pickle.load(f)
 
 # ===== 2. Load ma trận feature =====
-user_features_matrix = load_npz_object("MODEL/user_features_matrix.npz")
-item_features_matrix = load_npz_object("MODEL/item_features_matrix.npz")
+user_features_matrix = load_npz("MODEL/user_features_matrix.npz")  # ✅
+item_features_matrix = load_npz("MODEL/item_features_matrix.npz")  # ✅
 
 # ===== 3. Load file test và xử lý =====
 test_df = pd.read_csv("Chia_Data/data_test.csv")
