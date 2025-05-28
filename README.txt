@@ -1,4 +1,4 @@
-
+Bản Python 3.10.17
 ✅Precision@5 là gì?
 Precision@5 (tức là Precision at K, với K = 5) là chỉ số đánh giá độ chính xác của hệ thống gợi ý,
 đo xem trong 5 sản phẩm được hệ thống gợi ý, có bao nhiêu sản phẩm đúng là người dùng đã mua.
