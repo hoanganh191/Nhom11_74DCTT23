@@ -11,10 +11,10 @@ dataset = pickle.load(open("MODEL/lightfm_dataset.pkl", "rb"))
 user_features = load_npz("MODEL/user_features_matrix.npz")
 item_features = load_npz("MODEL/item_features_matrix.npz")
 
-# === Load lại đúng file data_train.csv hiện tại để kiểm tra ID gốc và thông tin user ===
+# === Load lại file data_train.csv ===
 df_train = pd.read_csv("Chia_Data/data_train.csv")
 df_train["Customer_ID"] = df_train["Customer_ID"].astype(str)
-df_train = df_train.drop_duplicates(subset="Customer_ID")  # mỗi ID chỉ 1 dòng thông tin
+df_train = df_train.drop_duplicates(subset="Customer_ID")
 allowed_ids = set(df_train["Customer_ID"].unique())
 
 # === Mapping từ mô hình ===
@@ -22,7 +22,28 @@ user_id_map, _, item_id_map, _ = dataset.mapping()
 item_id_reverse = {v: k for k, v in item_id_map.items()}
 user_id_map = {str(k): v for k, v in user_id_map.items()}
 
-# === Hàm gợi ý sản phẩm, trả thông tin user + danh sách sản phẩm ===
+# === Hàm render HTML box đẹp ===
+def render_item_boxes(items):
+    box_html = ""
+    for item in items:
+        box_html += f"""
+        <div style="
+            background: #f0f4ff;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 200px;
+            display: inline-block;
+        ">
+            <div style="font-size: 30px;">💡</div>
+            <h4 style="color: #2a6df4;">{item}</h4>
+        </div>
+        """
+    return box_html
+
+# === Hàm gợi ý sản phẩm ===
 def recommend_products(customer_id, top_n=5):
     customer_id = str(customer_id).strip()
 
@@ -43,8 +64,8 @@ def recommend_products(customer_id, top_n=5):
     top_items = np.argsort(-scores)[:top_n]
     recommended_items = [item_id_reverse[i] for i in top_items]
 
-    result_text = "\n".join([f"👉 {item}" for item in recommended_items])
-    return user_info_text, result_text
+    result_html = render_item_boxes(recommended_items)
+    return user_info_text, result_html
 
 # === Giao diện Gradio ===
 with gr.Blocks(title="Gợi ý sản phẩm cho khách hàng") as demo:
@@ -57,7 +78,7 @@ with gr.Blocks(title="Gợi ý sản phẩm cho khách hàng") as demo:
         with gr.Column():
             user_info_output = gr.Textbox(label="Thông tin người dùng", lines=2)
 
-    result_output = gr.Textbox(label="Sản phẩm gợi ý", lines=10)
+    result_output = gr.HTML()
 
     btn.click(fn=recommend_products,
               inputs=[customer_input, topn_slider],
