@@ -53,7 +53,7 @@ def render_item_boxes(items):
         """
     return box_html
 
-# === Hàm gợi ý sản phẩm ===
+# === Gợi ý theo Customer_ID ===
 def recommend_products(customer_id, top_n=5):
     customer_id = str(customer_id).strip()
 
@@ -77,22 +77,43 @@ def recommend_products(customer_id, top_n=5):
     result_html = render_item_boxes(recommended_items)
     return user_info_text, result_html
 
-# === Giao diện Gradio ===
-with gr.Blocks(title="Gợi ý sản phẩm cho khách hàng") as demo:
-    gr.Markdown("# 🎯 Gợi ý sản phẩm dựa trên Customer_ID")
-    with gr.Row():
-        with gr.Column():
-            customer_input = gr.Textbox(label="Nhập Customer_ID")
-            topn_slider = gr.Slider(1, 20, value=5, step=1, label="Số sản phẩm gợi ý")
-            btn = gr.Button("🔍 Gợi ý ngay")
-        with gr.Column():
-            user_info_output = gr.Textbox(label="Thông tin người dùng", lines=2)
+# === Top sản phẩm được nhiều người dùng đánh giá cao nhất ===
+def most_rated_products(top_n=5):
+    item_counts = df_train["Item_Purchased"].value_counts().head(top_n)
+    top_items = item_counts.index.tolist()
+    result_html = render_item_boxes(top_items)
+    return f"📦 Top {top_n} sản phẩm được nhiều người dùng đánh giá nhất:", result_html
 
-    result_output = gr.HTML()
+# === Giao diện Gradio với Tabs ===
+with gr.Blocks(title="Hệ thống gợi ý sản phẩm") as demo:
+    with gr.Tabs():
+        with gr.Tab("🎯 Gợi ý theo Customer_ID"):
+            gr.Markdown("## 🎯 Gợi ý sản phẩm dựa trên Customer_ID")
+            with gr.Row():
+                with gr.Column():
+                    customer_input = gr.Textbox(label="Nhập Customer_ID")
+                    topn_slider = gr.Slider(1, 20, value=5, step=1, label="Số sản phẩm gợi ý")
+                    btn = gr.Button("🔍 Gợi ý ngay")
+                with gr.Column():
+                    user_info_output = gr.Textbox(label="Thông tin người dùng", lines=2)
 
-    btn.click(fn=recommend_products,
-              inputs=[customer_input, topn_slider],
-              outputs=[user_info_output, result_output])
+            result_output = gr.HTML()
+
+            btn.click(fn=recommend_products,
+                      inputs=[customer_input, topn_slider],
+                      outputs=[user_info_output, result_output])
+
+        with gr.Tab("🔥 Sản phẩm phổ biến"):
+            gr.Markdown("## 🔥 Top sản phẩm được nhiều người đánh giá nhất")
+            with gr.Row():
+                topn_popular = gr.Slider(1, 20, value=5, step=1, label="Số sản phẩm hiển thị")
+                btn2 = gr.Button("📊 Xem danh sách")
+            output_text2 = gr.Textbox(label="Thông tin", interactive=False)
+            output_html2 = gr.HTML()
+
+            btn2.click(fn=most_rated_products,
+                       inputs=topn_popular,
+                       outputs=[output_text2, output_html2])
 
 # === Chạy Gradio ===
 demo.launch(server_name="127.0.0.1", server_port=7860, share=False)
