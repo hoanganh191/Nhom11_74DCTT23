@@ -4,6 +4,8 @@ import pickle
 from lightfm import LightFM
 from scipy.sparse import load_npz
 import gradio as gr
+import os
+import base64
 
 # === Load mô hình và dữ liệu đã train ===
 model = pickle.load(open("MODEL/lightfm_model.pkl", "rb"))
@@ -22,10 +24,18 @@ user_id_map, _, item_id_map, _ = dataset.mapping()
 item_id_reverse = {v: k for k, v in item_id_map.items()}
 user_id_map = {str(k): v for k, v in user_id_map.items()}
 
-# === Hàm render HTML box đẹp ===
+# === Hàm render HTML box có ảnh base64 và căn giữa ảnh ===
 def render_item_boxes(items):
     box_html = ""
     for item in items:
+        image_path = f"img/{item}.png"
+        if os.path.exists(image_path):
+            with open(image_path, "rb") as f:
+                encoded = base64.b64encode(f.read()).decode("utf-8")
+            img_tag = f'<img src="data:image/png;base64,{encoded}" alt="{item}" style="width:100px;height:100px;object-fit:contain;display:block;margin:0 auto;">'
+        else:
+            img_tag = f'<img src="https://via.placeholder.com/100?text=No+Image" alt="{item}" style="width:100px;height:100px;object-fit:contain;display:block;margin:0 auto;">'
+
         box_html += f"""
         <div style="
             background: #f0f4ff;
@@ -37,8 +47,8 @@ def render_item_boxes(items):
             width: 200px;
             display: inline-block;
         ">
-            <div style="font-size: 30px;">💡</div>
-            <h4 style="color: #2a6df4;">{item}</h4>
+            {img_tag}<br>
+            <h4 style="color: #2a6df4; margin-top: 10px;">{item}</h4>
         </div>
         """
     return box_html
@@ -84,4 +94,5 @@ with gr.Blocks(title="Gợi ý sản phẩm cho khách hàng") as demo:
               inputs=[customer_input, topn_slider],
               outputs=[user_info_output, result_output])
 
-    demo.launch()
+# === Chạy Gradio ===
+demo.launch(server_name="127.0.0.1", server_port=7860, share=False)
