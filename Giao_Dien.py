@@ -84,35 +84,63 @@ def most_rated_products(top_n=5):
     result_html = render_item_boxes(top_items)
     return f"📦 Top {top_n} sản phẩm được nhiều người đánh giá nhất:", result_html
 
-# === Gợi ý cho người dùng mới ===
+# === Gợi ý cho người dùng mới, ƯU TIÊN CHÍNH XÁC CATEGORY ===
 def recommend_for_new_user(age, gender, category, season, top_n):
-    feature_values = {
-        f"Age:{int(age)}": 1.0,
-        f"Gender={gender}": 1.0,
-        f"Category={category}": 1.0,
-        f"Season={season}": 1.0
-    }
+    # Tính Age_Group nếu muốn giữ (tùy chọn)
+    def age_group(age):
+        if age <= 25:
+            return "18-25"
+        elif age <= 35:
+            return "26-35"
+        elif age <= 45:
+            return "36-45"
+        elif age <= 60:
+            return "46-60"
+        else:
+            return "60+"
+
+    age_group_val = age_group(age)
+
+    # Tạo user feature vector (giữ lại nếu mô hình cần user_features)
+    feature_names = [f"Gender={gender}", f"Age_Group={age_group_val}"]
+    feature_index_map = dataset._user_feature_mapping
 
     indices = []
     values = []
-    for feat, val in feature_values.items():
-        if feat in dataset._user_feature_mapping:
-            idx = dataset._user_feature_mapping[feat]
-            indices.append(idx)
-            values.append(val)
-
-    if not indices:
-        return "❌ Không có đặc trưng nào khớp với mô hình!", ""
+    for feat in feature_names:
+        if feat in feature_index_map:
+            indices.append(feature_index_map[feat])
+            values.append(1.0)
 
     new_user_vec = csr_matrix((values, ([0]*len(indices), indices)),
                               shape=(1, user_features.shape[1]))
 
-    scores = model.predict(0, np.arange(len(item_id_map)),
-                           user_features=new_user_vec, item_features=item_features)
-    top_items = np.argsort(-scores)[:top_n]
-    recommended_items = [item_id_reverse[i] for i in top_items]
+    # Lọc sản phẩm có Category khớp
+    df_items = df_train.drop_duplicates("Item_Purchased")[["Item_Purchased", "Category", "Season"]]
+    filtered_items = df_items[df_items["Category"] == category]
 
-    return render_item_boxes(recommended_items)
+    if filtered_items.empty:
+        return f"❌ Không tìm thấy sản phẩm nào trong danh mục '{category}'", ""
+
+    item_id_to_index = {v: k for k, v in item_id_reverse.items()}
+    filtered_indexes = [
+        item_id_to_index[item_id]
+        for item_id in filtered_items["Item_Purchased"]
+        if item_id in item_id_to_index
+    ]
+
+    if not filtered_indexes:
+        return f"❌ Không tìm thấy mã sản phẩm phù hợp với mô hình.", ""
+
+    # Dự đoán điểm trên danh sách đã lọc
+    scores = model.predict(0, filtered_indexes,
+                           user_features=new_user_vec,
+                           item_features=item_features)
+
+    top_indices = np.argsort(-scores)[:top_n]
+    top_items = [item_id_reverse[filtered_indexes[i]] for i in top_indices]
+
+    return render_item_boxes(top_items)
 
 # === Giao diện Gradio với Tabs ===
 with gr.Blocks(title="Hệ thống gợi ý sản phẩm") as demo:
@@ -128,7 +156,6 @@ with gr.Blocks(title="Hệ thống gợi ý sản phẩm") as demo:
                     user_info_output = gr.Textbox(label="Thông tin người dùng", lines=2)
 
             result_output = gr.HTML()
-
             btn.click(fn=recommend_products,
                       inputs=[customer_input, topn_slider],
                       outputs=[user_info_output, result_output])
@@ -140,7 +167,6 @@ with gr.Blocks(title="Hệ thống gợi ý sản phẩm") as demo:
                 btn2 = gr.Button("📊 Xem danh sách")
             output_text2 = gr.Textbox(label="Thông tin", interactive=False)
             output_html2 = gr.HTML()
-
             btn2.click(fn=most_rated_products,
                        inputs=topn_popular,
                        outputs=[output_text2, output_html2])
@@ -152,7 +178,7 @@ with gr.Blocks(title="Hệ thống gợi ý sản phẩm") as demo:
                     age_input = gr.Number(label="Tuổi", value=25)
                     gender_input = gr.Dropdown(choices=["Male", "Female"], label="Giới tính")
                     category_input = gr.Dropdown(choices=["Clothing", "Accessories", "Outerwear", "Footwear"], label="Danh mục ưa thích")
-                    season_input = gr.Dropdown(choices=["Spring", "Summer", "Autumn", "Winter"], label="Mùa yêu thích")
+                    season_input = gr.Dropdown(choices=["Spring", "Summer", "Fall", "Winter"], label="Mùa yêu thích")
                     topn_newuser = gr.Slider(1, 20, value=5, step=1, label="Số sản phẩm gợi ý")
                     btn3 = gr.Button("✨ Gợi ý ngay")
                 result_newuser = gr.HTML()
@@ -162,4 +188,4 @@ with gr.Blocks(title="Hệ thống gợi ý sản phẩm") as demo:
                        outputs=result_newuser)
 
 # === Chạy Gradio ===
-demo.launch(server_name="127.0.0.1", server_port=7860, share=False)
+demo.launch()
