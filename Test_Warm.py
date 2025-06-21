@@ -10,7 +10,7 @@ dataset = pickle.load(open("MODEL/lightfm_dataset.pkl", "rb"))
 user_features = load_npz("MODEL/user_features_matrix.npz")
 item_features = load_npz("MODEL/item_features_matrix.npz")
 
-test_df = pd.read_csv("Chia_Data/test_warm.csv")
+test_df = pd.read_csv("Chia_Data/data_test_warm.csv")
 
 # ==== Tiền xử lý ====
 def age_group(age):
