@@ -11,7 +11,7 @@ from lightfm.evaluation import precision_at_k, auc_score
 # Đọc dữ liệu
 train_df = pd.read_csv('/content/data_train.csv')
 val_df = pd.read_csv('/content/data_val.csv')
-test_df = pd.read_csv('/content/data_test.csv')
+test_df = pd.read_csv('/content/data_test_cold.csv')
 
 # Gộp dữ liệu để chuẩn hóa và mã hóa
 full_df = pd.concat([train_df, val_df, test_df])

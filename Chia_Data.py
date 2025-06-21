@@ -50,7 +50,7 @@ df_test = pd.concat([df_test_warm, df_test_cold], ignore_index=True)
 # Bước 8: Lưu thành các file CSV
 df_train.to_csv("data_train.csv", index=False)
 df_val.to_csv("data_val.csv", index=False)
-df_test.to_csv("data_test.csv", index=False)
+df_test.to_csv("data_test_cold.csv", index=False)
 
 # In thống kê
 print("✅ Đã chia và lưu các tập dữ liệu thành công.")

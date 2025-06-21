@@ -28,7 +28,7 @@ user_features_matrix = load_npz("MODEL/user_features_matrix.npz")  # ✅
 item_features_matrix = load_npz("MODEL/item_features_matrix.npz")  # ✅
 
 # ===== 3. Load file test và xử lý =====
-test_df = pd.read_csv("Chia_Data/data_test.csv")
+test_df = pd.read_csv("Chia_Data/data_test_cold.csv")
 
 # Tạo cột Age_Group
 test_df["Age_Group"] = test_df["Age"].apply(age_group)
@@ -54,4 +54,4 @@ precision = precision_at_k(
     k=5
 ).mean()
 
-print(f"🎯 Precision@5 trên file data_test.csv: {precision:.4f} ({precision * 100:.2f}%)")
+print(f"🎯 Precision@5 trên file data_test_cold.csv: {precision:.4f} ({precision * 100:.2f}%)")

@@ -10,7 +10,7 @@ dataset = pickle.load(open("MODEL/lightfm_dataset.pkl", "rb"))
 user_features = load_npz("MODEL/user_features_matrix.npz")
 item_features = load_npz("MODEL/item_features_matrix.npz")
 
-test_df = pd.read_csv("Chia_Data/data_test.csv")
+test_df = pd.read_csv("Chia_Data/test_warm.csv")
 
 # ==== Tiền xử lý ====
 def age_group(age):
@@ -67,7 +67,7 @@ for user_raw_id in test_df["user_id_raw"].unique():
 
 # ==== Xuất ra CSV đẹp ====
 results_df = pd.DataFrame(results)
-results_df.to_csv("ket_qua_goi_y.csv", index=False, encoding="utf-8-sig")
+results_df.to_csv("Ket_Qua_Test_Warm.csv", index=False, encoding="utf-8-sig")
 
-print("✅ Đã lưu file 'ket_qua_goi_y.csv' với chi tiết sản phẩm đúng.")
+print("✅ Đã lưu file 'Ket_Qua_Test_Warm' với chi tiết sản phẩm đúng.")
 print("🎯 Precision trung bình toàn bộ người dùng:", results_df["Precision"].mean())
