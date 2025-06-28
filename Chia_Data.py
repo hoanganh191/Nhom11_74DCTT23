@@ -7,7 +7,7 @@ df = pd.read_csv("/content/Data_Dong_Bo.csv")
 # Bước 1: Lấy danh sách người dùng duy nhất
 unique_users = df['Customer_ID'].unique()
 
-# Bước 2: Chia 70% train, 30% còn lại để chia val và test cold
+# Bước 2: Chia 70% train, 30% còn lại để chia val và test
 train_users, remaining_users = train_test_split(unique_users, test_size=0.3, random_state=42)
 
 # Bước 3: Chia 30% còn lại thành 10% val (cold), 20% còn lại để chia test warm và test cold

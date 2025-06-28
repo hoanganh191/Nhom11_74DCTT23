@@ -60,9 +60,6 @@ def recommend_products(customer_id, top_n=5):
     if customer_id not in allowed_ids:
         return f"❌ Customer_ID '{customer_id}' không có trong dữ liệu huấn luyện.", ""
 
-    if customer_id not in user_id_map:
-        return f"❌ Customer_ID '{customer_id}' không tồn tại trong mô hình.", ""
-
     user_info = df_train[df_train["Customer_ID"] == customer_id][["Gender", "Age"]].iloc[0]
     gender = user_info["Gender"]
     age = user_info["Age"]
@@ -86,7 +83,6 @@ def most_rated_products(top_n=5):
 
 # === Gợi ý cho người dùng mới, ƯU TIÊN CHÍNH XÁC CATEGORY ===
 def recommend_for_new_user(age, gender, category, season, top_n):
-    # Tính Age_Group nếu muốn giữ (tùy chọn)
     def age_group(age):
         if age <= 25:
             return "18-25"
@@ -100,8 +96,6 @@ def recommend_for_new_user(age, gender, category, season, top_n):
             return "60+"
 
     age_group_val = age_group(age)
-
-    # Tạo user feature vector (giữ lại nếu mô hình cần user_features)
     feature_names = [f"Gender={gender}", f"Age_Group={age_group_val}"]
     feature_index_map = dataset._user_feature_mapping
 
@@ -115,7 +109,6 @@ def recommend_for_new_user(age, gender, category, season, top_n):
     new_user_vec = csr_matrix((values, ([0]*len(indices), indices)),
                               shape=(1, user_features.shape[1]))
 
-    # Lọc sản phẩm có Category khớp
     df_items = df_train.drop_duplicates("Item_Purchased")[["Item_Purchased", "Category", "Season"]]
     filtered_items = df_items[df_items["Category"] == category]
 
@@ -132,7 +125,6 @@ def recommend_for_new_user(age, gender, category, season, top_n):
     if not filtered_indexes:
         return f"❌ Không tìm thấy mã sản phẩm phù hợp với mô hình.", ""
 
-    # Dự đoán điểm trên danh sách đã lọc
     scores = model.predict(0, filtered_indexes,
                            user_features=new_user_vec,
                            item_features=item_features)

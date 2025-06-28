@@ -3,6 +3,8 @@ import numpy as np
 import pickle
 from lightfm import LightFM
 from scipy.sparse import load_npz
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # ==== Load mô hình và dữ liệu ====
 model = pickle.load(open("MODEL/lightfm_model.pkl", "rb"))
@@ -71,3 +73,17 @@ results_df.to_csv("Ket_Qua_Test_Cold.csv", index=False, encoding="utf-8-sig")
 
 print("✅ Đã lưu file 'Ket_Qua_Test_Cold.csv' với chi tiết sản phẩm đúng.")
 print("🎯 Precision trung bình toàn bộ người dùng:", results_df["Precision"].mean())
+
+# ==== Vẽ Biểu Đồ ====
+# Sắp xếp theo precision
+results_df_sorted = results_df.sort_values(by="Precision", ascending=False).reset_index(drop=True)
+
+plt.figure(figsize=(12, 6))
+sns.barplot(x=results_df_sorted.index, y=results_df_sorted["Precision"], color="skyblue")
+plt.title("Phân bố Precision theo người dùng (Test Cold Start)")
+plt.xlabel("Người dùng (đã sắp xếp theo Precision)")
+plt.ylabel("Precision")
+plt.grid(axis='y', linestyle='--', alpha=0.6)
+plt.tight_layout()
+plt.savefig("Bieu_Do_Test_Cold.png")
+print("✅ Đã lưu biểu đồ tại Bieu_Do_Test_Cold.png")

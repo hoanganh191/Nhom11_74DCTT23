@@ -14,6 +14,7 @@ val_df = pd.read_csv('/content/data_val.csv')
 test_df = pd.read_csv('/content/data_test_cold.csv')
 
 # Gộp dữ liệu để chuẩn hóa và mã hóa
+# boi vi co the train_df chỉ có 3 loại Category: "Shirt", "Pants", "Sneakers" Nhưng test_df lại có thêm Category: "Hoodie"
 full_df = pd.concat([train_df, val_df, test_df])
 
 # ======= 3. Tạo Age_Group =======
@@ -49,6 +50,7 @@ user_features = list(f"Gender={g}" for g in full_df["Gender"].unique()) + \
 item_features = list(f"Category={c}" for c in full_df["Category"].unique()) + \
                 list(f"Season={s}" for s in full_df["Season"].unique())
 
+#Day la buoc anh xa mo hinh
 dataset.fit(
     users=full_df["user_id_raw"],
     items=full_df["item_id_raw"],
