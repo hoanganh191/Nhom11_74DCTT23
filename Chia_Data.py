@@ -1,3 +1,6 @@
+#Chạy trên google colab
+# !pip install pandas
+# !pip install sklearn
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
@@ -35,13 +38,6 @@ df_val.to_csv("data_val_cold.csv", index=False)
 df_test_warm.to_csv("data_test_warm.csv", index=False)
 df_test_cold.to_csv("data_test_cold.csv", index=False)
 
-# In thống kê
+# Thông báo thành công
 print("✅ Đã chia và lưu các tập dữ liệu thành công.")
-print(f"Số dòng train: {len(df_train)}")
-print(f"Số dòng val (cold): {len(df_val)}")
-print(f"Số dòng test warm: {len(df_test_warm)}")
-print(f"Số dòng test cold: {len(df_test_cold)}")
-print(f"Số người dùng train: {len(train_users)}")
-print(f"Số người dùng val (cold): {len(val_users)}")
-print(f"Số người dùng test warm: {len(test_warm_users)}")
-print(f"Số người dùng test cold: {len(test_cold_users)}")
+
