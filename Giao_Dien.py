@@ -83,6 +83,7 @@ def most_rated_products(top_n=5):
 
 # === Gợi ý cho người dùng mới, ƯU TIÊN CHÍNH XÁC CATEGORY ===
 def recommend_for_new_user(age, gender, category, season, top_n):
+    # 👉 Hàm nhóm tuổi theo khoảng, để ánh xạ vào đặc trưng đã huấn luyện
     def age_group(age):
         if age <= 25:
             return "18-25"
@@ -95,43 +96,59 @@ def recommend_for_new_user(age, gender, category, season, top_n):
         else:
             return "60+"
 
+    # ✅ Gán nhóm tuổi tương ứng
     age_group_val = age_group(age)
+
+    # ✅ Tạo danh sách đặc trưng người dùng dựa trên thông tin nhập
+    # Các đặc trưng này cần đã được huấn luyện cùng mô hình
     feature_names = [f"Gender={gender}", f"Age_Group={age_group_val}"]
+
+    # ✅ Lấy ánh xạ tên đặc trưng → chỉ số trong ma trận đặc trưng người dùng
     feature_index_map = dataset._user_feature_mapping
 
-    indices = []
-    values = []
-    for feat in feature_names:
-        if feat in feature_index_map:
-            indices.append(feature_index_map[feat])
-            values.append(1.0)
+    # ✅ Lấy chỉ số của các đặc trưng hiện có trong ánh xạ
+    indices = [feature_index_map[feat] for feat in feature_names if feat in feature_index_map]
+    values = [1.0] * len(indices)  # Gán giá trị = 1.0 vì đặc trưng đang có mặt
 
+    # ✅ Tạo vector đặc trưng sparse cho người dùng mới (1 hàng, nhiều đặc trưng)
     new_user_vec = csr_matrix((values, ([0]*len(indices), indices)),
                               shape=(1, user_features.shape[1]))
 
+    # ✅ Lấy danh sách sản phẩm duy nhất từ tập huấn luyện (tránh trùng lặp)
     df_items = df_train.drop_duplicates("Item_Purchased")[["Item_Purchased", "Category", "Season"]]
+
+    # ✅ Lọc các sản phẩm thuộc đúng category người dùng đã chọn
     filtered_items = df_items[df_items["Category"] == category]
 
-    if filtered_items.empty:
-        return f"❌ Không tìm thấy sản phẩm nào trong danh mục '{category}'", ""
-
+    # ✅ Ánh xạ từ mã sản phẩm gốc → chỉ số item trong mô hình
     item_id_to_index = {v: k for k, v in item_id_reverse.items()}
+
+    # ✅ Lấy danh sách chỉ số của các sản phẩm phù hợp
     filtered_indexes = [
         item_id_to_index[item_id]
         for item_id in filtered_items["Item_Purchased"]
         if item_id in item_id_to_index
     ]
 
+    # ⚠️ Phòng trường hợp không ánh xạ được item nào (dữ liệu không khớp mô hình)
     if not filtered_indexes:
         return f"❌ Không tìm thấy mã sản phẩm phù hợp với mô hình.", ""
 
-    scores = model.predict(0, filtered_indexes,
-                           user_features=new_user_vec,
-                           item_features=item_features)
+    # ✅ Dự đoán điểm cho các sản phẩm dựa trên đặc trưng người dùng mới
+    scores = model.predict(
+        0,                         # Gán chỉ số người dùng tạm là 0
+        filtered_indexes,          # Danh sách chỉ số sản phẩm
+        user_features=new_user_vec,
+        item_features=item_features
+    )
 
+    # ✅ Sắp xếp điểm giảm dần và lấy top N sản phẩm có điểm cao nhất
     top_indices = np.argsort(-scores)[:top_n]
+
+    # ✅ Lấy lại danh sách mã sản phẩm từ chỉ số
     top_items = [item_id_reverse[filtered_indexes[i]] for i in top_indices]
 
+    # ✅ Trả kết quả dạng hiển thị hộp sản phẩm (tùy biến hàm `render_item_boxes`)
     return render_item_boxes(top_items)
 
 # === Giao diện Gradio với Tabs ===

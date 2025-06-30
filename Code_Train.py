@@ -43,12 +43,15 @@ for df in [df_all, df_train, df_val]:
 
 # ===== 5. Khởi tạo Dataset và fit =====
 dataset = Dataset()
+#Tập Hợp đặc trưng người dùng
 user_features_list = list(f"Gender={g}" for g in df_all["Gender"].unique()) + \
                      list(f"Age_Group={a}" for a in df_all["Age_Group"].unique())
 
+#Tập hợp đặc trưng sản phẩm
 item_features_list = list(f"Category={c}" for c in df_all["Category"].unique()) + \
                      list(f"Season={s}" for s in df_all["Season"].unique())
 
+#Chuẩn hóa để chuẩn bị tạo thành ma trận
 dataset.fit(
     users=df_all["user_id_raw"],
     items=df_all["item_id_raw"],
@@ -57,6 +60,8 @@ dataset.fit(
 )
 
 # ===== 6. Xây dựng user/item features =====
+#Tổng hợp tất cả các giá trị có trong data của mỗi đặc trưng
+
 def build_user_features(df):
     rows = df.drop_duplicates("user_id_raw")
     features = [
@@ -73,10 +78,11 @@ def build_item_features(df):
     ]
     return dataset.build_item_features(features)
 
+#Xây ma trận từ đặc trưng
 user_features_matrix = build_user_features(df_all)
 item_features_matrix = build_item_features(df_all)
 
-# ===== 7. Tạo ma trận interactions =====
+# ===== 7. Tạo ma trận interactions ===== ma trận tương tác
 def build_interactions(df):
     return dataset.build_interactions([
         (row["user_id_raw"], row["item_id_raw"], row["Review_Rating"])
@@ -87,20 +93,25 @@ interactions_train = build_interactions(df_train)
 interactions_val = build_interactions(df_val)
 
 # ===== 8. Huấn luyện mô hình =====
+
+#Tạo mô hình LightFM
 model = LightFM(
-    loss="warp",
-    no_components=50,
-    learning_rate=0.01,
-    item_alpha=1e-6,
-    user_alpha=1e-6
+    loss="warp", #Hàm mất mát để học xếp hạng ,Ưu tiên tính điểm cao hơn cho người dùng đã tương tác WARP = Weighted Approximate-Rank Pairwise
+    no_components=50, #Số chiều của vector ẩn
+    learning_rate=0.01, #Tốc độ học
+    item_alpha=1e-6, #Chúng là hệ số regularization (chuẩn hoá) để Dùng để chống overfitting trong quá trình huấn luyện mô hình ,Ngăn vector sản phẩm học quá “mạnh” hoặc “lớn”.
+    user_alpha=1e-6 #Chúng là hệ số regularization (chuẩn hoá) để Dùng để chống overfitting trong quá trình huấn luyện mô hình, Ngăn vector người dùng học quá “kỹ” hoặc “phức tạp”.
+    # WARP cho mô hình lý do để học tốt,
+    # còn item_alpha và user_alpha giúp mô hình học an toàn.
 )
 
+#Huấn Luyện Mô hình
 model.fit(
     interactions=interactions_train,
     user_features=user_features_matrix,
     item_features=item_features_matrix,
-    epochs=60,
-    num_threads=4
+    epochs=60, #Số vòng lặp học
+    num_threads=4 #Số luồng xử lý đồng thời
 )
 
 # ===== 9. Đánh giá trên tập validation =====

@@ -2,11 +2,11 @@ import pandas as pd
 import numpy as np
 import pickle
 from lightfm import LightFM
-from scipy.sparse import load_npz
+from scipy.sparse import load_npz, csr_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# ==== Load mô hình và dữ liệu ====
+# ==== Load mô hình và dữ liệu đã huấn luyện ====
 model = pickle.load(open("MODEL/lightfm_model.pkl", "rb"))
 dataset = pickle.load(open("MODEL/lightfm_dataset.pkl", "rb"))
 user_features = load_npz("MODEL/user_features_matrix.npz")
@@ -14,8 +14,9 @@ item_features = load_npz("MODEL/item_features_matrix.npz")
 
 test_df = pd.read_csv("Chia_Data/data_test_cold.csv")
 
-# ==== Tiền xử lý ====
+# ==== Tiền xử lý dữ liệu test ====
 def age_group(age):
+    # Nhóm tuổi thành các mốc
     if age <= 25: return "18-25"
     elif age <= 35: return "26-35"
     elif age <= 45: return "36-45"
@@ -25,33 +26,46 @@ def age_group(age):
 test_df["Age_Group"] = test_df["Age"].apply(age_group)
 test_df.rename(columns={"Customer_ID": "user_id_raw", "Item_Purchased": "item_id_raw"}, inplace=True)
 
-# ==== Mapping từ dataset ====
-user_id_map, _, item_id_map, _ = dataset.mapping()
-inner_to_item_raw = {v: k for k, v in item_id_map.items()}
+# ==== Mapping từ dataset để ánh xạ index nội bộ ====
+_, user_feat_map, item_id_map, _ = dataset.mapping()
+inner_to_item_raw = {v: k for k, v in item_id_map.items()}  # mapping ngược từ index về item raw ID
 
-# ==== Tính precision và lưu kết quả ====
+# ==== Tạo vector đặc trưng người dùng tạm thời cho cold user ====
+def build_temp_user_vector(age, gender):
+    age_grp = age_group(age)
+    features = [f"Gender={gender}", f"Age_Group={age_grp}"]
+    feature_index_map = user_feat_map
+    indices = [feature_index_map[f] for f in features if f in feature_index_map]
+    values = [1.0] * len(indices)
+    return csr_matrix((values, ([0]*len(indices), indices)), shape=(1, user_features.shape[1]))
+
+# ==== Đánh giá precision trên từng cold user ====
 results = []
 
+item_id_to_index = {v: k for k, v in item_id_map.items()}  # mapping ngược cho item
+
 for user_raw_id in test_df["user_id_raw"].unique():
-    if user_raw_id not in user_id_map:
-        continue
+    user_df = test_df[test_df["user_id_raw"] == user_raw_id]
 
-    uid = user_id_map[user_raw_id]
+    # Tạo vector đặc trưng người dùng cold
+    age = user_df["Age"].iloc[0]
+    gender = user_df["Gender"].iloc[0]
+    user_vec = build_temp_user_vector(age, gender)
 
-    # Các sản phẩm đã mua
-    true_items_raw = test_df[test_df["user_id_raw"] == user_raw_id]["item_id_raw"].unique()
+    # Danh sách item thực tế người đó đã mua
+    true_items_raw = user_df["item_id_raw"].unique()
     true_items_inner = [item_id_map[i] for i in true_items_raw if i in item_id_map]
     if not true_items_inner:
         continue
 
-    # Dự đoán tất cả item
-    scores = model.predict(uid, np.arange(len(item_id_map)), user_features=user_features, item_features=item_features)
+    # Dự đoán điểm cho toàn bộ item
+    scores = model.predict(0, np.arange(len(item_id_map)), user_features=user_vec, item_features=item_features)
 
-    # Top-N sản phẩm gợi ý theo số sản phẩm thực tế
+    # Chọn top-N item có điểm cao nhất, với N = số item thực tế
     top_items_inner = np.argsort(-scores)[:len(true_items_inner)]
     top_items_raw = [inner_to_item_raw[i] for i in top_items_inner]
 
-    # So sánh
+    # So sánh và tính precision
     correct_items = set(top_items_raw) & set(true_items_raw)
     num_correct = len(correct_items)
     precision = num_correct / len(true_items_inner)
@@ -67,23 +81,24 @@ for user_raw_id in test_df["user_id_raw"].unique():
         "SP Đúng": ", ".join(correct_items)
     })
 
-# ==== Xuất ra CSV đẹp ====
+# ==== Xuất kết quả thành CSV ====
 results_df = pd.DataFrame(results)
 results_df.to_csv("Ket_Qua_Test_Cold.csv", index=False, encoding="utf-8-sig")
 
 print("✅ Đã lưu file 'Ket_Qua_Test_Cold.csv' với chi tiết sản phẩm đúng.")
 print("🎯 Precision trung bình toàn bộ người dùng:", results_df["Precision"].mean())
 
-# ==== Vẽ Biểu Đồ ====
-# Sắp xếp theo precision
+# ==== Vẽ biểu đồ phân bố Precision ====
 results_df_sorted = results_df.sort_values(by="Precision", ascending=False).reset_index(drop=True)
 
 plt.figure(figsize=(12, 6))
 sns.barplot(x=results_df_sorted.index, y=results_df_sorted["Precision"], color="skyblue")
+plt.axhline(results_df_sorted["Precision"].mean(), color="red", linestyle="--", label="Precision trung bình")
 plt.title("Phân bố Precision theo người dùng (Test Cold Start)")
 plt.xlabel("Người dùng (đã sắp xếp theo Precision)")
 plt.ylabel("Precision")
 plt.grid(axis='y', linestyle='--', alpha=0.6)
+plt.legend()
 plt.tight_layout()
 plt.savefig("Bieu_Do_Test_Cold.png")
 print("✅ Đã lưu biểu đồ tại Bieu_Do_Test_Cold.png")
