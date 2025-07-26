@@ -3,7 +3,7 @@ import numpy as np
 import scipy.sparse as sp
 from lightfm import LightFM
 import pandas as pd
-
+#demo github 
 # Đọc dữ liệu từ file CSV chứa thông tin sản phẩm
 items = pd.read_csv("Data_Split/test_lightfm.csv")  # Giả sử đây là file chứa thông tin sản phẩm
 
